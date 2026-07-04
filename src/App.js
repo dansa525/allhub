@@ -5,13 +5,25 @@ import { useState } from "react";
 // - 이미지: Pollinations.ai (완전 무료, 키 불필요)
 // - 텍스트: Groq API (무료, 분당 30회, 하루 14400회)
 //   발급: https://console.groq.com → 무료 가입 → API Keys
+// - 음악/동영상/쇼츠: Hugging Face Inference API (완전 무료, 카드 불필요)
+//   발급: https://huggingface.co → 가입 → Settings → Access Tokens → New token (Read 권한)
+//   ⚠️ 무료 모델이라 화질·음질은 낮고 속도가 느립니다 (콜드 스타트 시 20~30초 소요될 수 있음)
+//   ⚠️ 나중에 품질을 올리려면 genMusic/genVideo 함수만 유료 API로 교체하면 됩니다
+// - 파일 변환: CloudConvert API (하루 25회 무료)
+//   발급: https://cloudconvert.com/api/v2 → 무료 가입 → API Key 발급
+//   ⚠️ 무료 한도 소진 시 같은 키에 유료 크레딧만 충전하면 계속 작동함
 // ══════════════════════════════════════════════════════
-const GROQ_KEY   = process.env.REACT_APP_GROQ_API_KEY || "";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_KEY         = process.env.REACT_APP_GROQ_API_KEY || "";
+const GROQ_MODEL       = "llama-3.3-70b-versatile";
+const CLOUDCONVERT_KEY = process.env.REACT_APP_CLOUDCONVERT_KEY || "";
 
 // 크레딧 차감표
 const COST = {
   image:  { low:0.5, mid:1,   high:2 },
+  music:  { low:0.5, mid:1,   high:2 },
+  video:  { low:1,   mid:2,   high:4 },
+  shorts: { low:1,   mid:2,   high:4 },
+  file:   { low:0.5, mid:0.5, high:0.5 },
   search: { low:0,   mid:0.5, high:1 },
   office: { low:0.5, mid:1,   high:2 },
   life:   { low:0,   mid:0.5, high:1 },
@@ -77,6 +89,85 @@ async function genText(system, user) {
   if (!res.ok) throw new Error("텍스트 생성 실패: " + res.status);
   const data = await res.json();
   return data?.choices?.[0]?.message?.content || "응답 없음";
+}
+
+// 음악 생성 (Vercel 서버 함수 /api/music 경유 → 서버가 Hugging Face 호출)
+// ⚠️ Hugging Face는 브라우저 직접 호출을 막아두어(CORS), 반드시 서버를 거쳐야 합니다.
+async function genMusic(prompt) {
+  const res = await fetch("/api/music", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "음악 생성 실패: " + res.status);
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+// 동영상 생성 (Vercel 서버 함수 /api/video 경유 → 서버가 Hugging Face 호출)
+// ⚠️ 무료 모델이라 짧고(2~3초) 저해상도입니다. 세로 변환은 지원하지 않아 쇼츠도 같은 방식으로 생성됩니다.
+async function genVideo(prompt) {
+  const res = await fetch("/api/video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "동영상 생성 실패: " + res.status);
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+// 파일 변환 (CloudConvert API: job 생성 → 업로드 → 대기 → 다운로드 URL)
+async function convertFile(file, targetFormat) {
+  if (!CLOUDCONVERT_KEY) {
+    throw new Error("Vercel 환경변수에 REACT_APP_CLOUDCONVERT_KEY를 등록해 주세요. (cloudconvert.com에서 무료 발급)");
+  }
+  // 1) job 생성
+  const jobRes = await fetch("https://api.cloudconvert.com/v2/jobs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${CLOUDCONVERT_KEY}`,
+    },
+    body: JSON.stringify({
+      tasks: {
+        "import-file":  { operation: "import/upload" },
+        "convert-file": { operation: "convert", input: "import-file", output_format: targetFormat },
+        "export-file":  { operation: "export/url", input: "convert-file" },
+      },
+    }),
+  });
+  if (jobRes.status === 401 || jobRes.status === 403) throw new Error("API 키가 올바르지 않습니다. Vercel 환경변수를 확인해 주세요.");
+  if (!jobRes.ok) throw new Error("변환 작업 생성 실패: " + jobRes.status);
+  const job = (await jobRes.json()).data;
+
+  // 2) 파일 업로드
+  const importTask = job.tasks.find(t => t.name === "import-file");
+  const form = new FormData();
+  Object.entries(importTask.result.form.parameters).forEach(([k, v]) => form.append(k, v));
+  form.append("file", file);
+  const uploadRes = await fetch(importTask.result.form.url, { method: "POST", body: form });
+  if (!uploadRes.ok) throw new Error("파일 업로드 실패");
+
+  // 3) 완료 대기
+  const waitRes = await fetch(`https://api.cloudconvert.com/v2/jobs/${job.id}/wait`, {
+    headers: { "Authorization": `Bearer ${CLOUDCONVERT_KEY}` },
+  });
+  if (waitRes.status === 402) throw new Error("무료 변환 횟수(하루 25회)를 초과했습니다. 유료 크레딧을 충전해 주세요.");
+  const finished = (await waitRes.json()).data;
+  if (finished.status !== "finished") throw new Error("변환 실패: 지원하지 않는 형식이거나 파일에 문제가 있습니다.");
+
+  // 4) 결과 다운로드 URL
+  const exportTask = finished.tasks.find(t => t.name === "export-file");
+  const resultFile = exportTask?.result?.files?.[0];
+  if (!resultFile) throw new Error("변환 결과를 찾을 수 없습니다.");
+  return { url: resultFile.url, filename: resultFile.filename };
 }
 
 // ── 공통 스타일 ────────────────────────────────────────
@@ -250,6 +341,211 @@ function ImagePanel({ credits, onDeduct, onClose }) {
             <button style={{...css.runBtn(false), marginTop:10, background:"rgba(255,255,255,0.08)"}}>
               ⬇️ 다운로드
             </button>
+          </a>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── 음악 생성 패널 ─────────────────────────────────────
+function MusicPanel({ credits, onDeduct, onClose }) {
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState("");
+  const cost = COST.music.mid;
+
+  async function run() {
+    if (!prompt.trim()) return;
+    if (credits < cost) { setErr("작업 횟수가 부족합니다."); return; }
+    setLoading(true); setErr(""); setResult(null);
+    try {
+      const url = await genMusic(prompt);
+      setResult(url); onDeduct(cost);
+    } catch(e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <>
+      <CloseBtn onClose={onClose} />
+      <div style={css.title}>🎵 음악 생성</div>
+            <div style={{background:"rgba(76,175,80,0.08)",border:"1px solid rgba(76,175,80,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#81C784",marginBottom:14}}>
+        💡 완전 무료 모델을 사용합니다. 약 8~10초 길이의 짧은 연주곡이 생성되며, 첫 호출 시 20~30초 정도 걸릴 수 있습니다.
+      </div>
+      <CostTag n={cost} />
+      <label style={css.label}>음악 설명 (분위기, 장르 등)</label>
+      <textarea style={css.textarea}
+        placeholder="예) 잔잔한 로파이 힙합, 비 오는 밤 감성"
+        value={prompt} onChange={e=>setPrompt(e.target.value)} />
+      {err && <div style={css.errMsg}>{err}</div>}
+      <button style={css.runBtn(loading)} onClick={run} disabled={loading}>
+        {loading ? "⏳ 생성 중... (최대 30초 소요)" : "✨ 음악 생성하기"}
+      </button>
+      {result && (
+        <div style={css.result}>
+          <div style={{fontSize:12,color:"#6B7280",marginBottom:10}}>✅ 생성 완료</div>
+          <audio controls style={{width:"100%"}} src={result} />
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── 동영상 생성 패널 ───────────────────────────────────
+function VideoPanel({ credits, onDeduct, onClose }) {
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState("");
+  const cost = COST.video.mid;
+
+  async function run() {
+    if (!prompt.trim()) return;
+    if (credits < cost) { setErr("작업 횟수가 부족합니다."); return; }
+    setLoading(true); setErr(""); setResult(null);
+    try {
+      const url = await genVideo(prompt);
+      setResult(url); onDeduct(cost);
+    } catch(e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <>
+      <CloseBtn onClose={onClose} />
+      <div style={css.title}>🎬 동영상 생성</div>
+            <div style={{background:"rgba(76,175,80,0.08)",border:"1px solid rgba(76,175,80,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#81C784",marginBottom:14}}>
+        💡 완전 무료 모델을 사용합니다. 2~3초 길이의 짧고 저해상도 영상이 생성되며, 첫 호출 시 20~30초 정도 걸릴 수 있습니다.
+      </div>
+      <CostTag n={cost} />
+      <label style={css.label}>영상 설명</label>
+      <textarea style={css.textarea}
+        placeholder="예) 파도가 치는 해변 위로 갈매기가 날아가는 모습"
+        value={prompt} onChange={e=>setPrompt(e.target.value)} />
+      {err && <div style={css.errMsg}>{err}</div>}
+      <button style={css.runBtn(loading)} onClick={run} disabled={loading}>
+        {loading ? "⏳ 생성 중... (최대 30초 소요)" : "✨ 동영상 생성하기"}
+      </button>
+      {result && (
+        <div style={css.result}>
+          <div style={{fontSize:12,color:"#6B7280",marginBottom:10}}>✅ 생성 완료</div>
+          <video controls autoPlay loop style={{width:"100%",borderRadius:10}} src={result} />
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── 쇼츠 제작 패널 ─────────────────────────────────────
+function ShortsPanel({ credits, onDeduct, onClose }) {
+  const [topic, setTopic] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [script, setScript] = useState(null);
+  const [err, setErr] = useState("");
+  const cost = COST.shorts.mid;
+
+  async function run() {
+    if (!topic.trim()) return;
+    if (credits < cost) { setErr("작업 횟수가 부족합니다."); return; }
+    setLoading(true); setErr(""); setVideoUrl(null); setScript(null);
+    try {
+      const text = await genText(
+        "쇼츠·릴스 대본 작가입니다. 주제에 맞는 짧고 임팩트 있는 영상 씬 묘사(장면 1개)와, 그 위에 들어갈 자막 문구 3줄을 한국어로 작성하세요. '[장면]'과 '[자막]'으로 구분해서 출력하세요.",
+        topic
+      );
+      setScript(text);
+      const scene = text.split("[자막]")[0].replace("[장면]", "").trim() || topic;
+      const url = await genVideo(scene);
+      setVideoUrl(url); onDeduct(cost);
+    } catch(e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <>
+      <CloseBtn onClose={onClose} />
+      <div style={css.title}>📱 쇼츠 제작</div>
+            <div style={{background:"rgba(76,175,80,0.08)",border:"1px solid rgba(76,175,80,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#81C784",marginBottom:14}}>
+        💡 완전 무료 모델을 사용합니다. 무료 모델 한계로 세로(9:16) 비율은 지원하지 않아 가로 영상으로 생성됩니다. AI가 대본을 먼저 만들고, 그 장면으로 짧은 영상을 생성합니다.
+      </div>
+      <CostTag n={cost} />
+      <label style={css.label}>쇼츠 주제</label>
+      <textarea style={css.textarea}
+        placeholder="예) 아침 루틴 꿀팁, 여름 다이어트 3가지 방법"
+        value={topic} onChange={e=>setTopic(e.target.value)} />
+      {err && <div style={css.errMsg}>{err}</div>}
+      <button style={css.runBtn(loading)} onClick={run} disabled={loading}>
+        {loading ? "⏳ 제작 중... (최대 30초 소요)" : "✨ 쇼츠 만들기"}
+      </button>
+      {script && (
+        <div style={css.result}>
+          <div style={{fontSize:12,color:"#6B7280",marginBottom:10}}>📝 생성된 대본</div>
+          <div style={{fontSize:13,color:"#D1D5DB",lineHeight:1.8,whiteSpace:"pre-wrap"}}>{script}</div>
+        </div>
+      )}
+      {videoUrl && (
+        <div style={css.result}>
+          <div style={{fontSize:12,color:"#6B7280",marginBottom:10}}>✅ 영상 생성 완료</div>
+          <video controls autoPlay loop style={{width:"100%",maxWidth:280,borderRadius:10,display:"block",margin:"0 auto"}} src={videoUrl} />
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── 파일 도구·변환 패널 ────────────────────────────────
+function FilePanel({ credits, onDeduct, onClose }) {
+  const [file, setFile] = useState(null);
+  const [target, setTarget] = useState("pdf");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState("");
+  const cost = COST.file.mid;
+
+  const TARGETS = ["pdf","docx","jpg","png","xlsx","pptx","mp3","mp4","txt"];
+
+  async function run() {
+    if (!file) { setErr("파일을 먼저 선택해 주세요."); return; }
+    if (credits < cost) { setErr("작업 횟수가 부족합니다."); return; }
+    setLoading(true); setErr(""); setResult(null);
+    try {
+      const res = await convertFile(file, target);
+      setResult(res); onDeduct(cost);
+    } catch(e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <>
+      <CloseBtn onClose={onClose} />
+      <div style={css.title}>🔄 파일 도구·변환</div>
+      {!CLOUDCONVERT_KEY && (
+        <div style={{background:"rgba(255,152,0,0.1)",border:"1px solid rgba(255,152,0,0.3)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#FFB74D",marginBottom:14}}>
+          ⚠️ 배포 전 테스트 단계입니다. REACT_APP_CLOUDCONVERT_KEY 등록 후 이용 가능합니다. (무료 하루 25회)
+        </div>
+      )}
+      <label style={css.label}>변환할 파일</label>
+      <input type="file" style={{...css.input, padding:"9px 14px"}}
+        onChange={e=>{ setFile(e.target.files[0] || null); setResult(null); setErr(""); }} />
+      <label style={css.label}>변환할 형식</label>
+      <div style={{display:"flex", gap:8, marginBottom:14, flexWrap:"wrap"}}>
+        {TARGETS.map(t=>(
+          <button key={t} style={css.tabBtn(target===t)} onClick={()=>setTarget(t)}>{t.toUpperCase()}</button>
+        ))}
+      </div>
+      <CostTag n={cost} />
+      {err && <div style={css.errMsg}>{err}</div>}
+      <button style={css.runBtn(loading)} onClick={run} disabled={loading}>
+        {loading ? "⏳ 변환 중..." : "✨ 변환하기"}
+      </button>
+      {result && (
+        <div style={css.result}>
+          <div style={{fontSize:12,color:"#6B7280",marginBottom:10}}>✅ 변환 완료</div>
+          <a href={result.url} target="_blank" rel="noopener noreferrer" style={css.linkCard}>
+            ⬇️ {result.filename} 다운로드 →
           </a>
         </div>
       )}
@@ -638,6 +934,10 @@ export default function App() {
     const close = () => setPanel(null);
     const props = { credits, onDeduct:deduct, onClose:close };
     if (panel.id==="image")  return <ImagePanel  {...props} />;
+    if (panel.id==="music")  return <SoonPanel cat={panel} onClose={close} />;
+    if (panel.id==="video")  return <VideoPanel  {...props} />;
+    if (panel.id==="shorts") return <ShortsPanel {...props} />;
+    if (panel.id==="file")   return <FilePanel   {...props} />;
     if (panel.id==="search") return <SearchPanel {...props} />;
     if (panel.id==="office") return <OfficePanel {...props} />;
     if (panel.id==="shop")   return <ShopPanel   {...props} />;
@@ -750,9 +1050,11 @@ export default function App() {
           borderRadius:12, fontSize:12, color:"#6B7280", lineHeight:1.7,
         }}>
           <strong style={{color:"#A78BFA"}}>💡 API 키 안내</strong><br/>
-          텍스트·검색 기능을 사용하려면 <strong style={{color:"#7C83FD"}}>Groq API 키</strong>가 필요합니다.<br/>
-          발급: <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style={{color:"#7C83FD"}}>console.groq.com</a> → 무료 가입 → API Keys → Create API Key<br/>
-          Vercel 배포 시: Settings → Environment Variables → <code style={{color:"#A78BFA"}}>REACT_APP_GROQ_API_KEY</code> 등록
+          텍스트·검색 기능: <strong style={{color:"#7C83FD"}}>Groq API 키</strong> — <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style={{color:"#7C83FD"}}>console.groq.com</a> 무료 가입<br/>
+          음악·동영상·쇼츠: <strong style={{color:"#7C83FD"}}>Hugging Face 토큰</strong> — <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" style={{color:"#7C83FD"}}>huggingface.co</a> 무료 가입 (완전 무료, 카드 불필요, 서버 함수를 통해서만 호출됨)<br/>
+          파일 변환: <strong style={{color:"#7C83FD"}}>CloudConvert API 키</strong> — <a href="https://cloudconvert.com/api/v2" target="_blank" rel="noopener noreferrer" style={{color:"#7C83FD"}}>cloudconvert.com</a> 무료 가입 (하루 25회 무료)<br/>
+          Vercel 배포 시 Settings → Environment Variables 에 아래 등록:<br/>
+          <code style={{color:"#A78BFA"}}>REACT_APP_GROQ_API_KEY</code>, <code style={{color:"#A78BFA"}}>HF_TOKEN</code>, <code style={{color:"#A78BFA"}}>REACT_APP_CLOUDCONVERT_KEY</code>
         </div>
       </main>
 
