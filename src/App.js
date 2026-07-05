@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ══════════════════════════════════════════════════════
 // API 설정
@@ -731,7 +731,7 @@ function SearchPanel({ credits, onDeduct, onClose, fixedMode }) {
         </>
       ) : (
         <>
-          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12}}>
+          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
             💬 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
           </div>
           <AiChatThread
@@ -898,7 +898,7 @@ function ShopPanel({ credits, onDeduct, onClose }) {
         </>
       ) : (
         <>
-          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12}}>
+          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
             💬 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
           </div>
           <AiChatThread key={sub}
@@ -992,7 +992,7 @@ function LifePanel({ credits, onDeduct, onClose }) {
         </>
       ) : (
         <>
-          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12}}>
+          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
             💬 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
           </div>
           <AiChatThread key={sub}
@@ -1029,7 +1029,7 @@ function HealthPanel({ credits, onDeduct, onClose }) {
     <>
       <CloseBtn onClose={onClose} />
       <div style={css.title}>🩺 건강·의학 정보</div>
-      <div style={{background:"rgba(233,30,99,0.08)",border:"1px solid rgba(233,30,99,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#F48FB1",marginBottom:14}}>
+      <div style={{background:"rgba(233,30,99,0.08)",border:"1px solid rgba(233,30,99,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#F48FB1",marginBottom:14,textIndent:"-1.1em"}}>
         ⚠️ 일반 의학 정보 제공 목적이며 의사의 진단을 대체하지 않습니다.
       </div>
       <div style={css.tabRow}>
@@ -1047,7 +1047,7 @@ function HealthPanel({ credits, onDeduct, onClose }) {
         </>
       ) : (
         <>
-          <div style={{fontSize:11.5, color:"#8B8DA0", marginTop:8, marginBottom:12}}>
+          <div style={{fontSize:11.5, color:"#8B8DA0", marginTop:8, marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
             💬 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
           </div>
           <AiChatThread
@@ -1130,7 +1130,7 @@ function SportsMoviePanel({ credits, onDeduct, onClose }) {
         </>
       ) : (
         <>
-          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12}}>
+          <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
             💬 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
           </div>
           <AiChatThread key={sub}
@@ -1150,7 +1150,7 @@ function CodePanel({ credits, onDeduct, onClose }) {
     <>
       <CloseBtn onClose={onClose} />
       <div style={css.title}>💻 코딩 작업</div>
-      <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12}}>
+      <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
         💬 코드 작성·디버깅·설명을 도와드립니다. 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
       </div>
       <AiChatThread
@@ -1169,10 +1169,10 @@ function AutoPanel({ credits, onDeduct, onClose }) {
     <>
       <CloseBtn onClose={onClose} />
       <div style={css.title}>⚙️ 워크플로우 자동화</div>
-      <div style={{background:"rgba(124,131,253,0.08)",border:"1px solid rgba(124,131,253,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#B8A6FF",marginBottom:14}}>
+      <div style={{background:"rgba(124,131,253,0.08)",border:"1px solid rgba(124,131,253,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#B8A6FF",marginBottom:14,textIndent:"-1.1em"}}>
         💡 지금은 자동화 시나리오를 설계해 드리는 단계이며, 실제 실행 연동은 추후 업데이트될 예정입니다.
       </div>
-      <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12}}>
+      <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
         💬 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
       </div>
       <AiChatThread
@@ -1205,13 +1205,33 @@ export default function App() {
   const [panel, setPanel] = useState(null);
   const [hovered, setHovered] = useState(null);
 
+  // 스마트폰 뒤로가기를 눌러도 앱이 종료되지 않고 메인 화면으로 돌아오게 처리
+  useEffect(() => {
+    const onPop = () => setPanel(null);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  function openPanel(cat) {
+    window.history.pushState({ allhubPanel: true }, "");
+    setPanel(cat);
+  }
+
+  function closePanel() {
+    if (window.history.state && window.history.state.allhubPanel) {
+      window.history.back();
+    } else {
+      setPanel(null);
+    }
+  }
+
   function deduct(n) {
     setCredits(prev => Math.max(0, +(prev - n).toFixed(1)));
   }
 
   function renderPanel() {
     if (!panel) return null;
-    const close = () => setPanel(null);
+    const close = closePanel;
     const props = { credits, onDeduct:deduct, onClose:close };
     if (panel.id==="image")  return <ImagePanel  {...props} />;
     if (panel.id==="music")  return <SoonPanel cat={panel} onClose={close} />;
@@ -1241,7 +1261,7 @@ export default function App() {
         background:"rgba(255,255,255,0.04)",
         backdropFilter:"blur(20px)",
         borderBottom:"1px solid rgba(255,255,255,0.08)",
-        padding:"0 24px", height:64,
+        padding:"0 24px", height:52,
         display:"flex", alignItems:"center", justifyContent:"space-between",
         position:"sticky", top:0, zIndex:100,
       }}>
@@ -1265,12 +1285,12 @@ export default function App() {
         </div>
       </header>
 
-      <main style={{maxWidth:1100, margin:"0 auto", padding:"28px 16px"}}>
-        <div style={{marginBottom:28}}>
-          <h1 style={{fontSize:26, fontWeight:600, color:"#E8EAF6", marginBottom:6, letterSpacing:"-0.4px"}}>
+      <main style={{maxWidth:1100, margin:"0 auto", padding:"14px 16px 10px"}}>
+        <div style={{marginBottom:14}}>
+          <h1 style={{fontSize:21, fontWeight:600, color:"#E8EAF6", marginBottom:3, letterSpacing:"-0.4px"}}>
             무엇을 도와 드릴까요?
           </h1>
-          <p style={{fontSize:14, color:"#6B7280", margin:0, fontWeight:400}}>
+          <p style={{fontSize:12, color:"#6B7280", margin:0, fontWeight:400}}>
             검색, 문서, 이미지, 음악, 건강, 생활, 코딩 — 구독 여러 개가 필요 없습니다.
           </p>
         </div>
@@ -1281,18 +1301,18 @@ export default function App() {
           const color = GC[group];
           return (
             <div key={group}>
-              <div style={{marginTop:22, marginBottom:10}}>
+              <div style={{marginTop:12, marginBottom:6}}>
                 <span style={{
                   background:`${color}22`, color,
-                  padding:"3px 12px", borderRadius:20,
-                  fontSize:11, fontWeight:700,
+                  padding:"2px 10px", borderRadius:20,
+                  fontSize:10, fontWeight:700,
                   border:`1px solid ${color}44`,
                 }}>{group}</span>
               </div>
               <div style={{
                 display:"grid",
                 gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",
-                gap:10, marginBottom:4,
+                gap:7, marginBottom:2,
               }}>
                 {cats.map(cat=>{
                   const standalone = cats.length % 2 === 1 && cats.indexOf(cat) === cats.length - 1;
@@ -1302,7 +1322,7 @@ export default function App() {
                       background:"linear-gradient(160deg, #262842 0%, #1a1b2e 55%, #131322 100%)",
                       border:"1px solid rgba(255,255,255,0.08)",
                       borderTop: hovered===cat.id && cat.phase===1 ? "1px solid rgba(255,255,255,0.32)" : "1px solid rgba(255,255,255,0.22)",
-                      borderRadius:16, padding:"13px 12px",
+                      borderRadius:14, padding:"9px 10px",
                       cursor: cat.phase===1 ? "pointer" : "default",
                       opacity: cat.phase===2 ? 0.72 : 1,
                       transition:"all 0.18s",
@@ -1314,7 +1334,7 @@ export default function App() {
                       display:"flex", alignItems: cat.sub ? "flex-start" : "center", gap:10,
                       gridColumn: standalone ? "1 / -1" : "auto",
                     }}
-                    onClick={()=>cat.phase===1 && setPanel(cat)}
+                    onClick={()=>cat.phase===1 && openPanel(cat)}
                     onMouseEnter={()=>setHovered(cat.id)}
                     onMouseLeave={()=>setHovered(null)}
                   >
@@ -1327,20 +1347,20 @@ export default function App() {
                       }}>SOON</span>
                     )}
                     <div style={{
-                      width:34, height:34, borderRadius:11, flexShrink:0,
+                      width:29, height:29, borderRadius:9, flexShrink:0,
                       display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:18,
+                      fontSize:15,
                       background:`radial-gradient(circle at 32% 28%, ${cat.grad[0]}, ${cat.grad[1]} 70%)`,
                       boxShadow:"0 6px 10px rgba(0,0,0,0.55), 0 2px 3px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.55), inset 0 -3px 4px rgba(0,0,0,0.3)",
                     }}>{cat.icon}</div>
                     <div style={{minWidth:0}}>
                       <div style={{
-                        fontSize:13.5, fontWeight:400, letterSpacing:"-0.1px",
+                        fontSize:12.5, fontWeight:400, letterSpacing:"-0.1px",
                         color: cat.phase===2 ? "#C7C9D6" : "#ECEAFC",
-                        lineHeight:1.25, wordBreak:"keep-all", whiteSpace: cat.sub ? "normal" : "nowrap",
+                        lineHeight:1.2, wordBreak:"keep-all", whiteSpace: cat.sub ? "normal" : "nowrap",
                       }}>{cat.name}</div>
                       {cat.sub && (
-                        <div style={{color:"#7B7E93", fontSize:9.5, marginTop:2}}>{cat.sub}</div>
+                        <div style={{color:"#7B7E93", fontSize:9, marginTop:1}}>{cat.sub}</div>
                       )}
                     </div>
                   </div>
