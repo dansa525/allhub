@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "허용되지 않은 요청 방식입니다." });
   }
 
-  const { prompt } = req.body || {};
+  const { prompt, quality, aspectRatio } = req.body || {};
   if (!prompt || !prompt.trim()) {
     return res.status(400).json({ error: "영상 설명을 입력해 주세요." });
   }
@@ -17,12 +17,20 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "서버에 HF_TOKEN이 설정되지 않았습니다. Vercel 환경변수를 확인해 주세요." });
   }
 
+  // 품질 단계 → 프레임 수(길이) 매핑 (모델/제공자가 지원하는 범위 내에서 best-effort로 반영)
+  const FRAMES_BY_QUALITY = { low: 49, mid: 81, high: 121 };
+  const num_frames = FRAMES_BY_QUALITY[quality] || FRAMES_BY_QUALITY.mid;
+
   try {
     const client = new InferenceClient(HF_TOKEN);
     const videoBlob = await client.textToVideo({
       provider: "fal-ai",
       model: "Wan-AI/Wan2.2-TI2V-5B",
       inputs: prompt,
+      parameters: {
+        num_frames,
+        ...(aspectRatio ? { aspect_ratio: aspectRatio } : {}),
+      },
     });
 
     const arrayBuffer = await videoBlob.arrayBuffer();
