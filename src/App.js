@@ -17,6 +17,8 @@ const GROQ_KEY         = process.env.REACT_APP_GROQ_API_KEY || "";
 const GROQ_MODEL       = "llama-3.3-70b-versatile";
 const CLOUDCONVERT_KEY = process.env.REACT_APP_CLOUDCONVERT_KEY || "";
 const JAMENDO_ID       = process.env.REACT_APP_JAMENDO_CLIENT_ID || "";
+const ADSENSE_CLIENT   = process.env.REACT_APP_ADSENSE_CLIENT || "";
+const ADSENSE_SLOT     = process.env.REACT_APP_ADSENSE_SLOT || "";
 
 // 크레딧 차감표
 const COST = {
@@ -46,18 +48,19 @@ const CATS = [
   { id:"video",    icon:"🎬", name:"동영상 스튜디오",   group:"창작 스튜디오", phase:1, grad:["#a6e2fc","#0284c7"] },
   { id:"shorts",   icon:"📱", name:"쇼츠 제작 스튜디오", group:"창작 스튜디오", phase:1, grad:["#b3f0cb","#16a34a"] },
   { id:"health",   icon:"🩺", name:"건강·의학 정보",    group:"건강",      phase:1, grad:["#fcb3c0","#e11d48"] },
-  { id:"sportsmovie", icon:"🍿", name:"스포츠·영화",   group:"건강",      phase:1, grad:["#93c5fd","#1d4ed8"] },
+  { id:"sportsmovie", icon:"🍿", name:"스포츠·영화",   group:"스포츠·영화", phase:1, grad:["#93c5fd","#1d4ed8"] },
   { id:"shop",     icon:"🛍️", name:"쇼핑·여행·교통",   group:"생활편의",   phase:1, grad:["#fee1a1","#d97706"] },
   { id:"life",     icon:"🏠", name:"부동산·세무·공공",  group:"생활편의",   phase:1, grad:["#fdcda3","#c2410c"] },
   { id:"code",     icon:"💻", name:"코딩 작업",        group:"추가 업데이트", phase:1, grad:["#7dd3fc","#0284c7"] },
   { id:"auto",     icon:"⚙️", name:"워크플로우 자동화", group:"추가 업데이트", phase:1, grad:["#c4b5fd","#7c3aed"] },
 ];
 
-const GROUP_GROUPS = ["검색·업무","창작 스튜디오","건강","생활편의","추가 업데이트"];
+const GROUP_GROUPS = ["검색·업무","창작 스튜디오","건강","스포츠·영화","생활편의","추가 업데이트"];
 const GC = {
   "검색·업무":   "#60A5FA",
   "창작 스튜디오": "#4ADE80",
   "건강":       "#F472B6",
+  "스포츠·영화":  "#3B82F6",
   "생활편의":    "#FBBF24",
   "추가 업데이트": "#9CA3AF",
 };
@@ -1213,6 +1216,65 @@ function SoonPanel({ cat, onClose }) {
   );
 }
 
+// ── 하단 광고 배너 ─────────────────────────────────────
+// REACT_APP_ADSENSE_CLIENT / REACT_APP_ADSENSE_SLOT 등록 시 실제 구글 애드센스 광고가 표시됩니다.
+// 등록 전에는 자리 안내용 디자인 배너가 대신 표시됩니다. (강제 클릭 유도 없음 — 정책 준수)
+function AdBanner() {
+  useEffect(() => {
+    if (!ADSENSE_CLIENT || !ADSENSE_SLOT) return;
+    try {
+      if (!window.__adsbygoogleLoaded) {
+        const script = document.createElement("script");
+        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+        script.async = true;
+        script.crossOrigin = "anonymous";
+        document.head.appendChild(script);
+        window.__adsbygoogleLoaded = true;
+      }
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) { /* 광고 로드 실패는 무시 (본 기능에 영향 없음) */ }
+  }, []);
+
+  if (ADSENSE_CLIENT && ADSENSE_SLOT) {
+    return (
+      <div style={{marginTop:20, marginBottom:8}}>
+        <ins className="adsbygoogle"
+          style={{ display:"block" }}
+          data-ad-client={ADSENSE_CLIENT}
+          data-ad-slot={ADSENSE_SLOT}
+          data-ad-format="auto"
+          data-full-width-responsive="true" />
+      </div>
+    );
+  }
+
+  // 광고 미설정 시: 텍스트 문구 대신 디자인된 배너 이미지(SVG)로 자리 표시
+  return (
+    <div style={{marginTop:20, marginBottom:8, borderRadius:14, overflow:"hidden",
+      border:"1px solid rgba(255,255,255,0.08)", boxShadow:"0 6px 16px rgba(0,0,0,0.4)"}}>
+      <svg viewBox="0 0 400 84" style={{width:"100%", height:"auto", display:"block"}} xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="adBg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#23253c" />
+            <stop offset="100%" stopColor="#171826" />
+          </linearGradient>
+          <radialGradient id="adBadge" cx="35%" cy="30%" r="75%">
+            <stop offset="0%" stopColor="#a78bfa" />
+            <stop offset="100%" stopColor="#6d28d9" />
+          </radialGradient>
+        </defs>
+        <rect width="400" height="84" rx="14" fill="url(#adBg)" />
+        <circle cx="42" cy="42" r="20" fill="url(#adBadge)" />
+        <text x="42" y="48" fontSize="18" textAnchor="middle" fill="#fff">📢</text>
+        <text x="76" y="37" fontSize="13" fill="#E8EAF6" fontFamily="sans-serif" fontWeight="600">광고 영역</text>
+        <text x="76" y="55" fontSize="10.5" fill="#7B7E93" fontFamily="sans-serif">광고 연동 준비 중입니다</text>
+        <rect x="344" y="14" width="42" height="18" rx="5" fill="rgba(255,255,255,0.08)" />
+        <text x="365" y="27" fontSize="9" textAnchor="middle" fill="#9CA3AF" fontFamily="sans-serif">AD</text>
+      </svg>
+    </div>
+  );
+}
+
 // ── 메인 앱 ────────────────────────────────────────────
 export default function App() {
   const [credits, setCredits] = useState(100);
@@ -1384,6 +1446,8 @@ export default function App() {
             </div>
           );
         })}
+
+        <AdBanner />
       </main>
 
       {panel && (
