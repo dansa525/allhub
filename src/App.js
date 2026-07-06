@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 const GROQ_KEY         = process.env.REACT_APP_GROQ_API_KEY || "";
 const GROQ_MODEL       = "llama-3.3-70b-versatile";
 const CLOUDCONVERT_KEY = process.env.REACT_APP_CLOUDCONVERT_KEY || "";
+const JAMENDO_ID       = process.env.REACT_APP_JAMENDO_CLIENT_ID || "";
 
 // 크레딧 차감표
 const COST = {
@@ -134,22 +135,6 @@ function coreLinks(q) {
   ];
 }
 
-// 음악 생성 (Vercel 서버 함수 /api/music 경유 → 서버가 Hugging Face 호출)
-// ⚠️ Hugging Face는 브라우저 직접 호출을 막아두어(CORS), 반드시 서버를 거쳐야 합니다.
-async function genMusic(prompt) {
-  const res = await fetch("/api/music", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "음악 생성 실패: " + res.status);
-  }
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-}
-
 // 동영상 생성 (Vercel 서버 함수 /api/video 경유 → 서버가 Hugging Face 호출)
 // ⚠️ 무료 모델이라 짧고(2~3초) 저해상도입니다. 세로 변환은 지원하지 않아 쇼츠도 같은 방식으로 생성됩니다.
 async function genVideo(prompt, opts = {}) {
@@ -167,6 +152,33 @@ async function genVideo(prompt, opts = {}) {
 }
 
 // 파일 변환 (CloudConvert API: job 생성 → 업로드 → 대기 → 다운로드 URL)
+// 음악 (Jamendo API: AI 생성이 아닌, 저작권 무료 음악 라이브러리에서 분위기에 맞는 곡 검색)
+async function genMusic(promptKo) {
+  if (!JAMENDO_ID) {
+    throw new Error("Vercel 환경변수에 REACT_APP_JAMENDO_CLIENT_ID를 등록해 주세요. (developer.jamendo.com에서 무료 발급)");
+  }
+  // 한국어 분위기 설명 → 영어 태그로 변환 (Jamendo는 영어 태그 검색이 잘 맞음). 실패해도 원문으로 계속 진행.
+  let tags = "";
+  try {
+    const raw = await genText(
+      "다음 설명에 어울리는 배경음악 분위기를 영어 태그 2~4개로만 출력하세요. 쉼표 없이 공백으로만 구분하고, 소문자 영어 단어만 사용하세요. 다른 설명은 절대 추가하지 마세요. 예시 출력: chill lofi relax",
+      promptKo, 30
+    );
+    tags = raw.trim().toLowerCase().replace(/[^a-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 4).join("+");
+  } catch (e) { /* Groq 실패 시 원문 그대로 검색 시도 */ }
+
+  const fuzzytags = tags || encodeURIComponent(promptKo);
+  const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${JAMENDO_ID}&format=json&limit=6&fuzzytags=${fuzzytags}&audioformat=mp32&include=musicinfo`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("음악 검색 실패: " + res.status);
+  const data = await res.json();
+  if (!data.results || data.results.length === 0) {
+    throw new Error("어울리는 음악을 찾지 못했습니다. 다른 표현으로 다시 시도해 주세요.");
+  }
+  return data.results.map(t => ({ name: t.name, artist: t.artist_name, url: t.audio, image: t.album_image }));
+}
+
+
 async function convertFile(file, targetFormat) {
   if (!CLOUDCONVERT_KEY) {
     throw new Error("Vercel 환경변수에 REACT_APP_CLOUDCONVERT_KEY를 등록해 주세요. (cloudconvert.com에서 무료 발급)");
@@ -411,6 +423,53 @@ function AiChatThread({ system, cost, credits, onDeduct, placeholder }) {
 }
 
 
+// ── 음악 스튜디오 패널 (무료 배경음악 찾기) ─────────────
+function MusicPanel({ credits, onDeduct, onClose }) {
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [tracks, setTracks] = useState(null);
+  const [err, setErr] = useState("");
+
+  async function run() {
+    if (!prompt.trim()) return;
+    setLoading(true); setErr(""); setTracks(null);
+    try {
+      const list = await genMusic(prompt);
+      setTracks(list);
+    } catch(e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <>
+      <CloseBtn onClose={onClose} />
+      <div style={css.title}>🎵 음악 스튜디오</div>
+      <div style={{fontSize:11.5, color:"#8B8DA0", marginBottom:14, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
+        💡 AI가 직접 곡을 만드는 대신, 분위기에 맞는 저작권 무료 배경음악을 찾아 들려드립니다. 완전 무료입니다.
+      </div>
+      <label style={css.label}>원하는 분위기</label>
+      <textarea style={css.textarea}
+        placeholder="예) 잔잔한 로파이 힙합, 비 오는 밤 감성"
+        value={prompt} onChange={e=>setPrompt(e.target.value)} />
+      {err && <div style={css.errMsg}>{err}</div>}
+      <button style={css.runBtn(loading)} onClick={run} disabled={loading}>
+        {loading ? "⏳ 찾는 중..." : "🎧 배경음악 찾기"}
+      </button>
+      {tracks && (
+        <div style={css.result}>
+          {tracks.map((t,i)=>(
+            <div key={i} style={{marginBottom: i===tracks.length-1 ? 0 : 14}}>
+              <div style={{fontSize:13, color:"#D1D5DB", marginBottom:5}}>🎵 {t.name} · {t.artist}</div>
+              <audio controls style={{width:"100%"}} src={t.url} />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+
 function ImagePanel({ credits, onDeduct, onClose }) {
   const [prompt, setPrompt] = useState("");
   const [quality, setQuality] = useState("mid");
@@ -457,51 +516,6 @@ function ImagePanel({ credits, onDeduct, onClose }) {
               ⬇️ 다운로드
             </button>
           </a>
-        </div>
-      )}
-    </>
-  );
-}
-
-// ── 음악 생성 패널 ─────────────────────────────────────
-function MusicPanel({ credits, onDeduct, onClose }) {
-  const [prompt, setPrompt] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [err, setErr] = useState("");
-  const cost = COST.music.mid;
-
-  async function run() {
-    if (!prompt.trim()) return;
-    if (credits < cost) { setErr("작업 횟수가 부족합니다."); return; }
-    setLoading(true); setErr(""); setResult(null);
-    try {
-      const url = await genMusic(prompt);
-      setResult(url); onDeduct(cost);
-    } catch(e) { setErr(e.message); }
-    finally { setLoading(false); }
-  }
-
-  return (
-    <>
-      <CloseBtn onClose={onClose} />
-      <div style={css.title}>🎵 음악 생성</div>
-            <div style={{background:"rgba(76,175,80,0.08)",border:"1px solid rgba(76,175,80,0.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#81C784",marginBottom:14}}>
-        💡 완전 무료 모델을 사용합니다. 약 8~10초 길이의 짧은 연주곡이 생성되며, 첫 호출 시 20~30초 정도 걸릴 수 있습니다.
-      </div>
-      <CostTag n={cost} />
-      <label style={css.label}>음악 설명 (분위기, 장르 등)</label>
-      <textarea style={css.textarea}
-        placeholder="예) 잔잔한 로파이 힙합, 비 오는 밤 감성"
-        value={prompt} onChange={e=>setPrompt(e.target.value)} />
-      {err && <div style={css.errMsg}>{err}</div>}
-      <button style={css.runBtn(loading)} onClick={run} disabled={loading}>
-        {loading ? "⏳ 생성 중... (최대 30초 소요)" : "✨ 음악 생성하기"}
-      </button>
-      {result && (
-        <div style={css.result}>
-          <div style={{fontSize:12,color:"#6B7280",marginBottom:10}}>✅ 생성 완료</div>
-          <audio controls style={{width:"100%"}} src={result} />
         </div>
       )}
     </>
@@ -1234,7 +1248,7 @@ export default function App() {
     const close = closePanel;
     const props = { credits, onDeduct:deduct, onClose:close };
     if (panel.id==="image")  return <ImagePanel  {...props} />;
-    if (panel.id==="music")  return <SoonPanel cat={panel} onClose={close} />;
+    if (panel.id==="music")  return <MusicPanel  {...props} />;
     if (panel.id==="video")  return <VideoPanel  {...props} />;
     if (panel.id==="shorts") return <ShortsPanel {...props} />;
     if (panel.id==="file")   return <FilePanel   {...props} />;
