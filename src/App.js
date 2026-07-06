@@ -1366,7 +1366,7 @@ export default function App() {
 
       <main style={{maxWidth:1100, margin:"0 auto", padding:"9px 16px 6px"}}>
         <div style={{marginBottom:9}}>
-          <h1 style={{fontSize:19, fontWeight:600, color:"#E8EAF6", marginBottom:2, letterSpacing:"-0.4px"}}>
+          <h1 style={{fontSize:23, fontWeight:600, color:"#E8EAF6", marginBottom:4, letterSpacing:"-0.4px"}}>
             무엇을 도와 드릴까요?
           </h1>
           <p style={{fontSize:12, color:"#6B7280", margin:0, fontWeight:400}}>
@@ -1380,11 +1380,11 @@ export default function App() {
           const color = GC[group];
           return (
             <div key={group}>
-              <div style={{marginTop:7, marginBottom:4}}>
+              <div style={{marginTop:10, marginBottom:6}}>
                 <span style={{
                   background:`${color}22`, color,
-                  padding:"2px 10px", borderRadius:20,
-                  fontSize:10, fontWeight:700,
+                  padding:"3px 12px", borderRadius:20,
+                  fontSize:12, fontWeight:700,
                   border:`1px solid ${color}44`,
                 }}>{group}</span>
               </div>
@@ -1460,8 +1460,8 @@ export default function App() {
               <div style={{marginBottom:6}}>
                 <span style={{
                   background:`${GC[group]}22`, color:GC[group],
-                  padding:"2px 10px", borderRadius:20,
-                  fontSize:10, fontWeight:700,
+                  padding:"3px 12px", borderRadius:20,
+                  fontSize:12, fontWeight:700,
                   border:`1px solid ${GC[group]}44`,
                 }}>{group}</span>
               </div>
@@ -1505,11 +1505,11 @@ export default function App() {
           const color = GC[group];
           return (
             <div key={group}>
-              <div style={{marginTop:7, marginBottom:4}}>
+              <div style={{marginTop:10, marginBottom:6}}>
                 <span style={{
                   background:`${color}22`, color,
-                  padding:"2px 10px", borderRadius:20,
-                  fontSize:10, fontWeight:700,
+                  padding:"3px 12px", borderRadius:20,
+                  fontSize:12, fontWeight:700,
                   border:`1px solid ${color}44`,
                 }}>{group}</span>
               </div>
