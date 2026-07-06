@@ -1237,7 +1237,7 @@ function AdBanner() {
 
   if (ADSENSE_CLIENT && ADSENSE_SLOT) {
     return (
-      <div style={{marginTop:10, marginBottom:2}}>
+      <div style={{marginTop:28, marginBottom:2}}>
         <ins className="adsbygoogle"
           style={{ display:"block" }}
           data-ad-client={ADSENSE_CLIENT}
@@ -1250,7 +1250,7 @@ function AdBanner() {
 
   // 광고 미설정 시: 텍스트 문구 대신 디자인된 배너 이미지(SVG)로 자리 표시
   return (
-    <div style={{marginTop:10, marginBottom:2, borderRadius:14, overflow:"hidden",
+    <div style={{marginTop:28, marginBottom:2, borderRadius:14, overflow:"hidden",
       border:"1px solid rgba(255,255,255,0.08)", boxShadow:"0 6px 16px rgba(0,0,0,0.4)"}}>
       <svg viewBox="0 0 400 84" style={{width:"100%", height:"auto", display:"block"}} xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -1380,7 +1380,7 @@ export default function App() {
           const color = GC[group];
           return (
             <div key={group}>
-              <div style={{marginTop:10, marginBottom:6}}>
+              <div style={{marginTop:28, marginBottom:6}}>
                 <span style={{
                   background:`${color}22`, color,
                   padding:"3px 12px", borderRadius:20,
@@ -1451,7 +1451,7 @@ export default function App() {
         })}
 
         {/* 건강 · 스포츠·영화 - 화면 공간 절약을 위해 한 줄로 결합 배치 */}
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:7, marginBottom:0}}>
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:25, marginBottom:0}}>
           {[
             { group:"건강", cat: CATS.find(c=>c.id==="health") },
             { group:"스포츠·영화", cat: CATS.find(c=>c.id==="sportsmovie") },
@@ -1505,7 +1505,7 @@ export default function App() {
           const color = GC[group];
           return (
             <div key={group}>
-              <div style={{marginTop:10, marginBottom:6}}>
+              <div style={{marginTop:28, marginBottom:6}}>
                 <span style={{
                   background:`${color}22`, color,
                   padding:"3px 12px", borderRadius:20,
