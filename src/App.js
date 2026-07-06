@@ -55,7 +55,7 @@ const CATS = [
   { id:"auto",     icon:"⚙️", name:"워크플로우 자동화", group:"추가 업데이트", phase:1, grad:["#c4b5fd","#7c3aed"] },
 ];
 
-const GROUP_GROUPS = ["검색·업무","창작 스튜디오","건강","스포츠·영화","생활편의","추가 업데이트"];
+const GROUP_GROUPS = ["검색·업무","창작 스튜디오","생활편의","추가 업데이트"];
 const GC = {
   "검색·업무":   "#60A5FA",
   "창작 스튜디오": "#4ADE80",
@@ -1255,21 +1255,24 @@ function AdBanner() {
       <svg viewBox="0 0 400 84" style={{width:"100%", height:"auto", display:"block"}} xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="adBg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#23253c" />
-            <stop offset="100%" stopColor="#171826" />
+            <stop offset="0%" stopColor="#ff9a5a" />
+            <stop offset="50%" stopColor="#ff6f9c" />
+            <stop offset="100%" stopColor="#8b5cf6" />
           </linearGradient>
-          <radialGradient id="adBadge" cx="35%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#a78bfa" />
-            <stop offset="100%" stopColor="#6d28d9" />
+          <radialGradient id="adGlow1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </radialGradient>
         </defs>
         <rect width="400" height="84" rx="14" fill="url(#adBg)" />
-        <circle cx="42" cy="42" r="20" fill="url(#adBadge)" />
-        <text x="42" y="48" fontSize="18" textAnchor="middle" fill="#fff">📢</text>
-        <text x="76" y="37" fontSize="13" fill="#E8EAF6" fontFamily="sans-serif" fontWeight="600">광고 영역</text>
-        <text x="76" y="55" fontSize="10.5" fill="#7B7E93" fontFamily="sans-serif">광고 연동 준비 중입니다</text>
-        <rect x="344" y="14" width="42" height="18" rx="5" fill="rgba(255,255,255,0.08)" />
-        <text x="365" y="27" fontSize="9" textAnchor="middle" fill="#9CA3AF" fontFamily="sans-serif">AD</text>
+        <circle cx="340" cy="20" r="60" fill="url(#adGlow1)" />
+        <circle cx="40" cy="90" r="50" fill="url(#adGlow1)" />
+        <circle cx="60" cy="30" r="16" fill="rgba(255,255,255,0.22)" />
+        <circle cx="230" cy="60" r="10" fill="rgba(255,255,255,0.18)" />
+        <circle cx="270" cy="24" r="7" fill="rgba(255,255,255,0.25)" />
+        <path d="M170 42 l6 -14 l6 14 l14 2 l-11 9 l4 14 l-13 -8 l-13 8 l4 -14 l-11 -9 z" fill="rgba(255,255,255,0.85)" />
+        <rect x="344" y="14" width="42" height="18" rx="5" fill="rgba(0,0,0,0.28)" />
+        <text x="365" y="27" fontSize="9" textAnchor="middle" fill="#ffffff" fontFamily="sans-serif" fontWeight="700">AD</text>
       </svg>
     </div>
   );
@@ -1371,7 +1374,132 @@ export default function App() {
           </p>
         </div>
 
-        {GROUP_GROUPS.map(group => {
+        {["검색·업무","창작 스튜디오"].map(group => {
+          const cats = CATS.filter(c=>c.group===group);
+          if (!cats.length) return null;
+          const color = GC[group];
+          return (
+            <div key={group}>
+              <div style={{marginTop:12, marginBottom:6}}>
+                <span style={{
+                  background:`${color}22`, color,
+                  padding:"2px 10px", borderRadius:20,
+                  fontSize:10, fontWeight:700,
+                  border:`1px solid ${color}44`,
+                }}>{group}</span>
+              </div>
+              <div style={{
+                display:"grid",
+                gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",
+                gap:7, marginBottom:2,
+              }}>
+                {cats.map(cat=>{
+                  const standalone = cats.length % 2 === 1 && cats.indexOf(cat) === cats.length - 1;
+                  return (
+                  <div key={cat.id}
+                    style={{
+                      background:"linear-gradient(160deg, #262842 0%, #1a1b2e 55%, #131322 100%)",
+                      border:"1px solid rgba(255,255,255,0.08)",
+                      borderTop: hovered===cat.id && cat.phase===1 ? "1px solid rgba(255,255,255,0.32)" : "1px solid rgba(255,255,255,0.22)",
+                      borderRadius:14, padding:"9px 10px",
+                      cursor: cat.phase===1 ? "pointer" : "default",
+                      opacity: cat.phase===2 ? 0.72 : 1,
+                      transition:"all 0.18s",
+                      transform: hovered===cat.id && cat.phase===1 ? "translateY(-2px)" : "none",
+                      boxShadow: hovered===cat.id && cat.phase===1
+                        ? "0 14px 26px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.45)"
+                        : "0 10px 20px rgba(0,0,0,0.5), 0 3px 6px rgba(0,0,0,0.35)",
+                      position:"relative",
+                      display:"flex", alignItems: cat.sub ? "flex-start" : "center", gap:10,
+                      gridColumn: standalone ? "1 / -1" : "auto",
+                    }}
+                    onClick={()=>cat.phase===1 && openPanel(cat)}
+                    onMouseEnter={()=>setHovered(cat.id)}
+                    onMouseLeave={()=>setHovered(null)}
+                  >
+                    {cat.phase===2 && (
+                      <span style={{
+                        position:"absolute", top:8, right:8,
+                        background:"rgba(255,255,255,0.06)",
+                        borderRadius:6, padding:"2px 6px",
+                        fontSize:8.5, color:"#8B8DA0", fontWeight:700,
+                      }}>SOON</span>
+                    )}
+                    <div style={{
+                      width:29, height:29, borderRadius:9, flexShrink:0,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      fontSize:15,
+                      background:`radial-gradient(circle at 32% 28%, ${cat.grad[0]}, ${cat.grad[1]} 70%)`,
+                      boxShadow:"0 6px 10px rgba(0,0,0,0.55), 0 2px 3px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.55), inset 0 -3px 4px rgba(0,0,0,0.3)",
+                    }}>{cat.icon}</div>
+                    <div style={{minWidth:0}}>
+                      <div style={{
+                        fontSize:12.5, fontWeight:400, letterSpacing:"-0.1px",
+                        color: cat.phase===2 ? "#C7C9D6" : "#ECEAFC",
+                        lineHeight:1.2, wordBreak:"keep-all", whiteSpace: cat.sub ? "normal" : "nowrap",
+                      }}>{cat.name}</div>
+                      {cat.sub && (
+                        <div style={{color:"#7B7E93", fontSize:9, marginTop:1}}>{cat.sub}</div>
+                      )}
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* 건강 · 스포츠·영화 - 화면 공간 절약을 위해 한 줄로 결합 배치 */}
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:7, marginTop:12, marginBottom:2}}>
+          {[
+            { group:"건강", cat: CATS.find(c=>c.id==="health") },
+            { group:"스포츠·영화", cat: CATS.find(c=>c.id==="sportsmovie") },
+          ].map(({group, cat}) => (
+            <div key={group}>
+              <div style={{marginBottom:6}}>
+                <span style={{
+                  background:`${GC[group]}22`, color:GC[group],
+                  padding:"2px 10px", borderRadius:20,
+                  fontSize:10, fontWeight:700,
+                  border:`1px solid ${GC[group]}44`,
+                }}>{group}</span>
+              </div>
+              <div
+                style={{
+                  background:"linear-gradient(160deg, #262842 0%, #1a1b2e 55%, #131322 100%)",
+                  border:"1px solid rgba(255,255,255,0.08)",
+                  borderTop: hovered===cat.id ? "1px solid rgba(255,255,255,0.32)" : "1px solid rgba(255,255,255,0.22)",
+                  borderRadius:14, padding:"9px 10px",
+                  cursor:"pointer",
+                  transition:"all 0.18s",
+                  transform: hovered===cat.id ? "translateY(-2px)" : "none",
+                  boxShadow: hovered===cat.id
+                    ? "0 14px 26px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.45)"
+                    : "0 10px 20px rgba(0,0,0,0.5), 0 3px 6px rgba(0,0,0,0.35)",
+                  display:"flex", alignItems:"center", gap:10,
+                }}
+                onClick={()=>openPanel(cat)}
+                onMouseEnter={()=>setHovered(cat.id)}
+                onMouseLeave={()=>setHovered(null)}
+              >
+                <div style={{
+                  width:29, height:29, borderRadius:9, flexShrink:0,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:15,
+                  background:`radial-gradient(circle at 32% 28%, ${cat.grad[0]}, ${cat.grad[1]} 70%)`,
+                  boxShadow:"0 6px 10px rgba(0,0,0,0.55), 0 2px 3px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.55), inset 0 -3px 4px rgba(0,0,0,0.3)",
+                }}>{cat.icon}</div>
+                <div style={{
+                  fontSize:12.5, fontWeight:400, letterSpacing:"-0.1px",
+                  color:"#ECEAFC", lineHeight:1.2, wordBreak:"keep-all", whiteSpace:"nowrap",
+                }}>{cat.name}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {GROUP_GROUPS.slice(2).map(group => {
           const cats = CATS.filter(c=>c.group===group);
           if (!cats.length) return null;
           const color = GC[group];
