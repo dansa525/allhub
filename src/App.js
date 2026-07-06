@@ -1237,7 +1237,7 @@ function AdBanner() {
 
   if (ADSENSE_CLIENT && ADSENSE_SLOT) {
     return (
-      <div style={{marginTop:20, marginBottom:8}}>
+      <div style={{marginTop:10, marginBottom:2}}>
         <ins className="adsbygoogle"
           style={{ display:"block" }}
           data-ad-client={ADSENSE_CLIENT}
@@ -1250,7 +1250,7 @@ function AdBanner() {
 
   // 광고 미설정 시: 텍스트 문구 대신 디자인된 배너 이미지(SVG)로 자리 표시
   return (
-    <div style={{marginTop:20, marginBottom:8, borderRadius:14, overflow:"hidden",
+    <div style={{marginTop:10, marginBottom:2, borderRadius:14, overflow:"hidden",
       border:"1px solid rgba(255,255,255,0.08)", boxShadow:"0 6px 16px rgba(0,0,0,0.4)"}}>
       <svg viewBox="0 0 400 84" style={{width:"100%", height:"auto", display:"block"}} xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -1340,7 +1340,7 @@ export default function App() {
         background:"rgba(255,255,255,0.04)",
         backdropFilter:"blur(20px)",
         borderBottom:"1px solid rgba(255,255,255,0.08)",
-        padding:"0 24px", height:52,
+        padding:"0 22px", height:46,
         display:"flex", alignItems:"center", justifyContent:"space-between",
         position:"sticky", top:0, zIndex:100,
       }}>
@@ -1364,9 +1364,9 @@ export default function App() {
         </div>
       </header>
 
-      <main style={{maxWidth:1100, margin:"0 auto", padding:"14px 16px 10px"}}>
-        <div style={{marginBottom:14}}>
-          <h1 style={{fontSize:21, fontWeight:600, color:"#E8EAF6", marginBottom:3, letterSpacing:"-0.4px"}}>
+      <main style={{maxWidth:1100, margin:"0 auto", padding:"9px 16px 6px"}}>
+        <div style={{marginBottom:9}}>
+          <h1 style={{fontSize:19, fontWeight:600, color:"#E8EAF6", marginBottom:2, letterSpacing:"-0.4px"}}>
             무엇을 도와 드릴까요?
           </h1>
           <p style={{fontSize:12, color:"#6B7280", margin:0, fontWeight:400}}>
@@ -1380,7 +1380,7 @@ export default function App() {
           const color = GC[group];
           return (
             <div key={group}>
-              <div style={{marginTop:12, marginBottom:6}}>
+              <div style={{marginTop:7, marginBottom:4}}>
                 <span style={{
                   background:`${color}22`, color,
                   padding:"2px 10px", borderRadius:20,
@@ -1391,7 +1391,7 @@ export default function App() {
               <div style={{
                 display:"grid",
                 gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",
-                gap:7, marginBottom:2,
+                gap:6, marginBottom:0,
               }}>
                 {cats.map(cat=>{
                   const standalone = cats.length % 2 === 1 && cats.indexOf(cat) === cats.length - 1;
@@ -1401,7 +1401,7 @@ export default function App() {
                       background:"linear-gradient(160deg, #262842 0%, #1a1b2e 55%, #131322 100%)",
                       border:"1px solid rgba(255,255,255,0.08)",
                       borderTop: hovered===cat.id && cat.phase===1 ? "1px solid rgba(255,255,255,0.32)" : "1px solid rgba(255,255,255,0.22)",
-                      borderRadius:14, padding:"9px 10px",
+                      borderRadius:13, padding:"8px 9px",
                       cursor: cat.phase===1 ? "pointer" : "default",
                       opacity: cat.phase===2 ? 0.72 : 1,
                       transition:"all 0.18s",
@@ -1451,7 +1451,7 @@ export default function App() {
         })}
 
         {/* 건강 · 스포츠·영화 - 화면 공간 절약을 위해 한 줄로 결합 배치 */}
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:7, marginTop:12, marginBottom:2}}>
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:7, marginBottom:0}}>
           {[
             { group:"건강", cat: CATS.find(c=>c.id==="health") },
             { group:"스포츠·영화", cat: CATS.find(c=>c.id==="sportsmovie") },
@@ -1470,7 +1470,7 @@ export default function App() {
                   background:"linear-gradient(160deg, #262842 0%, #1a1b2e 55%, #131322 100%)",
                   border:"1px solid rgba(255,255,255,0.08)",
                   borderTop: hovered===cat.id ? "1px solid rgba(255,255,255,0.32)" : "1px solid rgba(255,255,255,0.22)",
-                  borderRadius:14, padding:"9px 10px",
+                  borderRadius:13, padding:"8px 9px",
                   cursor:"pointer",
                   transition:"all 0.18s",
                   transform: hovered===cat.id ? "translateY(-2px)" : "none",
@@ -1505,7 +1505,7 @@ export default function App() {
           const color = GC[group];
           return (
             <div key={group}>
-              <div style={{marginTop:12, marginBottom:6}}>
+              <div style={{marginTop:7, marginBottom:4}}>
                 <span style={{
                   background:`${color}22`, color,
                   padding:"2px 10px", borderRadius:20,
@@ -1516,7 +1516,7 @@ export default function App() {
               <div style={{
                 display:"grid",
                 gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",
-                gap:7, marginBottom:2,
+                gap:6, marginBottom:0,
               }}>
                 {cats.map(cat=>{
                   const standalone = cats.length % 2 === 1 && cats.indexOf(cat) === cats.length - 1;
@@ -1526,7 +1526,7 @@ export default function App() {
                       background:"linear-gradient(160deg, #262842 0%, #1a1b2e 55%, #131322 100%)",
                       border:"1px solid rgba(255,255,255,0.08)",
                       borderTop: hovered===cat.id && cat.phase===1 ? "1px solid rgba(255,255,255,0.32)" : "1px solid rgba(255,255,255,0.22)",
-                      borderRadius:14, padding:"9px 10px",
+                      borderRadius:13, padding:"8px 9px",
                       cursor: cat.phase===1 ? "pointer" : "default",
                       opacity: cat.phase===2 ? 0.72 : 1,
                       transition:"all 0.18s",
