@@ -127,16 +127,16 @@ async function genChat(system, history, maxTokens = 1600) {
 }
 
 // 모든 "단순 검색"에 공통으로 들어가야 하는 대한민국 필수 링크
-function coreLinks(q) {
-  return [
-    { name:"네이버",  url:`https://search.naver.com/search.naver?query=${encodeURIComponent(q)}` },
-    { name:"다음",    url:`https://search.daum.net/search?q=${encodeURIComponent(q)}` },
-    { name:"구글",    url:`https://www.google.com/search?q=${encodeURIComponent(q)}` },
-    { name:"ChatGPT", url:`https://chatgpt.com/?q=${encodeURIComponent(q)}` },
-    { name:"Gemini",  url:`https://gemini.google.com/app?q=${encodeURIComponent(q)}` },
-    { name:"YouTube", url:`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}` },
-  ];
-}
+const copyToClipboard = (q) => { try { navigator.clipboard.writeText(q); } catch(e) {} };
+const naverEngine    = q => ({ name:"네이버",  url:`https://search.naver.com/search.naver?query=${encodeURIComponent(q)}` });
+const daumEngine     = q => ({ name:"다음",    url:`https://search.daum.net/search?q=${encodeURIComponent(q)}` });
+const googleEngine   = q => ({ name:"구글",    url:`https://www.google.com/search?q=${encodeURIComponent(q)}` });
+const youtubeEngine  = q => ({ name:"YouTube", url:`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}` });
+const chatgptEngine  = q => ({ name:"ChatGPT", url:`https://chatgpt.com/?q=${encodeURIComponent(q)}`, onClick:()=>copyToClipboard(q) });
+const geminiEngine   = q => ({ name:"Gemini",  url:`https://gemini.google.com/app`, onClick:()=>copyToClipboard(q),
+  note:"⚠️ 구글 보안 정책상 진입이 막힐 수 있습니다. 검색어는 자동 복사되니, 브라우저에서 직접 열어 붙여넣기 해주세요." });
+const wikipediaEngine = q => ({ name:"Wikipedia", url:`https://ko.wikipedia.org/wiki/${encodeURIComponent(q)}` });
+const bingEngine     = q => ({ name:"Bing",    url:`https://www.bing.com/search?q=${encodeURIComponent(q)}` });
 
 // 동영상 생성 (Vercel 서버 함수 /api/video 경유 → 서버가 Hugging Face 호출)
 // ⚠️ 무료 모델이라 짧고(2~3초) 저해상도입니다. 세로 변환은 지원하지 않아 쇼츠도 같은 방식으로 생성됩니다.
@@ -359,9 +359,14 @@ function ResultBox({ result }) {
     <div style={css.result}>
       {result.type==="links"
         ? result.items.map((l,i)=>(
-            <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={css.linkCard}>
-              🌐 {l.name} →
-            </a>
+            <div key={i}>
+              <a href={l.url} target="_blank" rel="noopener noreferrer" style={css.linkCard} onClick={l.onClick}>
+                🌐 {l.name} →
+              </a>
+              {l.note && (
+                <div style={{fontSize:10, color:"#F0B429", margin:"-4px 0 8px", paddingLeft:"1.1em", textIndent:"-1.1em"}}>{l.note}</div>
+              )}
+            </div>
           ))
         : <div style={{fontSize:13,color:"#D1D5DB",lineHeight:1.8,whiteSpace:"pre-wrap"}}>{result.text}</div>
       }
@@ -492,6 +497,23 @@ function ImagePanel({ credits, onDeduct, onClose }) {
     finally { setLoading(false); }
   }
 
+  async function handleDownload() {
+    try {
+      const res = await fetch(result);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = "allhub-image.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      window.open(result, "_blank");
+    }
+  }
+
   return (
     <>
       <CloseBtn onClose={onClose} />
@@ -514,11 +536,9 @@ function ImagePanel({ credits, onDeduct, onClose }) {
         <div style={css.result}>
           <div style={{fontSize:12,color:"#6B7280",marginBottom:10}}>✅ 생성 완료</div>
           <img src={result} alt="생성 이미지" style={{width:"100%",borderRadius:10,display:"block"}} />
-          <a href={result} download="allhub-image.png">
-            <button style={{...css.runBtn(false), marginTop:10, background:"rgba(255,255,255,0.08)"}}>
-              ⬇️ 다운로드
-            </button>
-          </a>
+          <button onClick={handleDownload} style={{...css.runBtn(false), marginTop:10, background:"rgba(255,255,255,0.08)"}}>
+            ⬇️ 다운로드
+          </button>
         </div>
       )}
     </>
@@ -714,14 +734,14 @@ function SearchPanel({ credits, onDeduct, onClose, fixedMode }) {
   async function runSimple() {
     if (!query.trim()) return;
     setResult({ type:"links", items:[
-      { name:"Google 검색",   url:`https://www.google.com/search?q=${encodeURIComponent(query)}` },
-      { name:"네이버 검색",    url:`https://search.naver.com/search.naver?query=${encodeURIComponent(query)}` },
-      { name:"다음 검색",     url:`https://search.daum.net/search?q=${encodeURIComponent(query)}` },
-      { name:"Bing 검색",     url:`https://www.bing.com/search?q=${encodeURIComponent(query)}` },
-      { name:"ChatGPT",      url:`https://chatgpt.com/?q=${encodeURIComponent(query)}` },
-      { name:"Gemini",       url:`https://gemini.google.com/app?q=${encodeURIComponent(query)}` },
-      { name:"YouTube 검색",  url:`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}` },
-      { name:"Wikipedia",    url:`https://ko.wikipedia.org/wiki/${encodeURIComponent(query)}` },
+      googleEngine(query),
+      naverEngine(query),
+      daumEngine(query),
+      youtubeEngine(query),
+      chatgptEngine(query),
+      geminiEngine(query),
+      wikipediaEngine(query),
+      bingEngine(query),
     ]});
   }
 
@@ -848,28 +868,6 @@ function ShopPanel({ credits, onDeduct, onClose }) {
     { id:"traffic", label:"🚇 교통" },
   ];
 
-  const LINKS = {
-    shop: [
-      { name:"쿠팡",       url:q=>`https://www.coupang.com/np/search?q=${encodeURIComponent(q)}` },
-      { name:"11번가",     url:q=>`https://search.11st.co.kr/Search.tmall?kwd=${encodeURIComponent(q)}` },
-      { name:"G마켓",      url:q=>`https://browse.gmarket.co.kr/search?keyword=${encodeURIComponent(q)}` },
-      { name:"당근마켓",    url:q=>`https://www.daangn.com/search/${encodeURIComponent(q)}` },
-    ],
-    travel: [
-      { name:"야놀자",      url:q=>`https://www.yanolja.com/search?keyword=${encodeURIComponent(q)}` },
-      { name:"스카이스캐너", url:q=>`https://www.skyscanner.co.kr/flights/${encodeURIComponent(q)}` },
-      { name:"여기어때",    url:q=>`https://www.yeogi.com/search?keyword=${encodeURIComponent(q)}` },
-      { name:"에어비앤비",   url:q=>`https://www.airbnb.co.kr/s/${encodeURIComponent(q)}` },
-    ],
-    traffic: [
-      { name:"네이버 지도 길찾기", url:q=>`https://map.naver.com/v5/search/${encodeURIComponent(q)}` },
-      { name:"카카오맵 길찾기",    url:q=>`https://map.kakao.com/?q=${encodeURIComponent(q)}` },
-      { name:"코레일 기차 예매",   url:()=>"https://www.letskorail.com" },
-      { name:"티맵",              url:()=>"https://www.tmap.co.kr" },
-      { name:"고속버스 예매",      url:()=>"https://www.kobus.co.kr" },
-    ],
-  };
-
   const SYS = {
     shop:    "전문 쇼핑 어드바이저입니다. 제품 구매 가이드, 가격 범위, 선택 포인트를 한국어로 상세히 정리하세요. 이전 대화 맥락을 기억하고 이어서 답변하세요.",
     travel:  "여행 전문가입니다. 입력된 여행지나 여행 관련 질문에 대해 일정 추천, 명소, 비용, 팁을 한국어로 정리하세요. 이전 대화 맥락을 기억하고 이어서 답변하세요.",
@@ -884,7 +882,35 @@ function ShopPanel({ credits, onDeduct, onClose }) {
 
   function runSimple() {
     if (!query.trim()) return;
-    const links = [...LINKS[sub].map(l=>({ name:l.name, url:l.url(query) })), ...coreLinks(query)];
+    const q = query;
+    let links = [];
+    if (sub === "shop") {
+      links = [
+        { name:"쿠팡",   url:`https://www.coupang.com/np/search?q=${encodeURIComponent(q)}` },
+        { name:"11번가", url:`https://search.11st.co.kr/Search.tmall?kwd=${encodeURIComponent(q)}` },
+        { name:"G마켓",  url:`https://browse.gmarket.co.kr/search?keyword=${encodeURIComponent(q)}` },
+        { name:"당근마켓", url:`https://www.daangn.com/search/${encodeURIComponent(q)}` },
+        naverEngine(q), daumEngine(q), googleEngine(q), chatgptEngine(q), geminiEngine(q), youtubeEngine(q),
+      ];
+    } else if (sub === "travel") {
+      links = [
+        naverEngine(q), daumEngine(q), googleEngine(q), chatgptEngine(q), geminiEngine(q), youtubeEngine(q),
+        { name:"에어비앤비", url:`https://www.airbnb.co.kr/s/${encodeURIComponent(q)}/homes` },
+        { name:"야놀자",     url:`https://www.yanolja.com/search?keyword=${encodeURIComponent(q)}` },
+        { name:"여기어때",   url:"https://www.yeogi.com" },
+        { name:"스카이스캐너", url:"https://www.skyscanner.co.kr" },
+      ];
+    } else {
+      links = [
+        naverEngine(q), daumEngine(q), googleEngine(q), youtubeEngine(q),
+        { name:"네이버 지도 길찾기", url:`https://map.naver.com/v5/search/${encodeURIComponent(q)}` },
+        { name:"카카오맵 길찾기",   url:`https://map.kakao.com/?q=${encodeURIComponent(q)}` },
+        { name:"티맵",             url:"https://www.tmap.co.kr" },
+        { name:"코레일 기차 예매",  url:"https://www.letskorail.com" },
+        { name:"고속버스 예매",     url:"https://www.kobus.co.kr" },
+        chatgptEngine(q), geminiEngine(q),
+      ];
+    }
     setResult({ type:"links", items:links });
   }
 
@@ -942,28 +968,6 @@ function LifePanel({ credits, onDeduct, onClose }) {
     { id:"public", label:"🏛️ 공공기관" },
   ];
 
-  const LINKS = {
-    estate: [
-      { name:"국토부 실거래가 조회", url:()=>"https://rt.molit.go.kr" },
-      { name:"네이버 부동산",       url:q=>`https://land.naver.com/search/index.naver?query=${encodeURIComponent(q)}` },
-      { name:"KB부동산",           url:()=>"https://kbland.kr" },
-      { name:"직방",               url:()=>"https://www.zigbang.com" },
-      { name:"호갱노노",            url:()=>"https://hogangnono.com" },
-    ],
-    tax: [
-      { name:"국세청 홈택스",   url:()=>"https://www.hometax.go.kr" },
-      { name:"위택스 (지방세)", url:()=>"https://www.wetax.go.kr" },
-      { name:"국세청 세금 계산기", url:()=>"https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?mi=2338&cntntsId=7739" },
-      { name:"손택스 (모바일 홈택스)", url:()=>"https://www.hometax.go.kr/websquare/websquare.wq?w2xPath=/ui/pp/index_pp.xml" },
-    ],
-    public: [
-      { name:"정부24 민원 검색",     url:q=>`https://www.gov.kr/search/search.do?sQuery=${encodeURIComponent(q)}` },
-      { name:"민원24 바로가기",      url:()=>"https://www.minwon.go.kr" },
-      { name:"대법원 인터넷 등기소", url:()=>"https://www.iros.go.kr" },
-      { name:"정부민원안내 콜센터(110)", url:()=>"https://www.110.go.kr" },
-    ],
-  };
-
   const SYS = {
     estate: "부동산 전문가입니다. 부동산 시세, 세금(취득세·양도세·재산세), 청약, 임대차 관련 정보를 한국어로 상세히 설명하세요. 반드시 '이 정보는 참고용이며 정확한 사항은 전문가와 상담하세요'라는 안내를 포함하세요. 이전 대화 맥락을 기억하고 이어서 답변하세요.",
     tax:    "세무 전문가입니다. 세금 신고, 절세 방법, 세무 관련 절차를 한국어로 명확하게 설명하세요. 반드시 '이 정보는 참고용이며 정확한 세무 처리는 세무사와 상담하세요'라는 안내를 포함하세요. 이전 대화 맥락을 기억하고 이어서 답변하세요.",
@@ -978,7 +982,33 @@ function LifePanel({ credits, onDeduct, onClose }) {
 
   function runSimple() {
     if (!query.trim()) return;
-    const links = [...LINKS[sub].map(l=>({ name:l.name, url:l.url(query) })), ...coreLinks(query)];
+    const q = query;
+    let links = [];
+    if (sub === "estate") {
+      links = [
+        naverEngine(q), daumEngine(q), googleEngine(q), chatgptEngine(q), geminiEngine(q), youtubeEngine(q),
+        { name:"국토부 실거래가 조회", url:"https://rt.molit.go.kr" },
+        { name:"네이버 부동산", url:"https://land.naver.com" },
+        { name:"KB부동산", url:"https://kbland.kr" },
+        { name:"직방", url:"https://www.zigbang.com" },
+        { name:"호갱노노", url:"https://hogangnono.com" },
+      ];
+    } else if (sub === "tax") {
+      links = [
+        naverEngine(q), daumEngine(q), googleEngine(q), chatgptEngine(q), geminiEngine(q), youtubeEngine(q),
+        { name:"국세청 홈택스", url:"https://www.hometax.go.kr" },
+        { name:"손택스 (모바일 홈택스)", url:"https://www.hometax.go.kr/websquare/websquare.wq?w2xPath=/ui/pp/index_pp.xml" },
+        { name:"위택스 (지방세)", url:"https://www.wetax.go.kr" },
+        { name:"국세청 세금 계산기", url:"https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?mi=2338&cntntsId=7739" },
+      ];
+    } else {
+      links = [
+        { name:"정부24 검색", url:"https://www.gov.kr" },
+        { name:"대법원 인터넷 등기소", url:"https://www.iros.go.kr" },
+        { name:"정부민원안내 콜센터(110)", url:"https://www.110.go.kr" },
+        naverEngine(q), daumEngine(q), googleEngine(q), chatgptEngine(q), geminiEngine(q), youtubeEngine(q),
+      ];
+    }
     setResult({ type:"links", items:links });
   }
 
@@ -1032,13 +1062,30 @@ function HealthPanel({ credits, onDeduct, onClose }) {
   function runSimple() {
     if (!query.trim()) return;
     setResult({ type:"links", items:[
-      { name:"건강보험심사평가원 병원찾기", url:`https://www.hira.or.kr/re/finder/findDocInfo.do?sType=N&searchWord=${encodeURIComponent(query)}` },
-      { name:"국가건강정보포털",   url:"https://health.kdca.go.kr" },
-      { name:"네이버 건강 검색",   url:`https://search.naver.com/search.naver?query=${encodeURIComponent(query)}+증상` },
-      { name:"서울아산병원 질환백과", url:`https://www.amc.seoul.kr/asan/healthinfo/disease/diseaseDetailSearch.do?searchKeyword=${encodeURIComponent(query)}` },
-      { name:"약학정보원 약품 검색", url:`https://www.health.kr/searchDrug/search_kor.asp?keyword=${encodeURIComponent(query)}` },
+      googleEngine(query),
+      naverEngine(query),
+      daumEngine(query),
+      youtubeEngine(query),
+      chatgptEngine(query),
+      geminiEngine(query),
+      { name:"국가건강정보포털", url:"https://health.kdca.go.kr" },
       { name:"응급의료포털 병원 찾기", url:"https://www.e-gen.or.kr" },
-      ...coreLinks(query),
+      { name:"약학정보원 약품 검색", url:"https://www.health.kr" },
+      wikipediaEngine(query),
+      bingEngine(query),
+    ]});
+  }
+
+  function runFacility() {
+    if (!query.trim()) return;
+    setResult({ type:"links", items:[
+      { name:"네이버 지도", url:`https://map.naver.com/v5/search/${encodeURIComponent(query)}` },
+      { name:"다음 지도",   url:`https://map.daum.net/?q=${encodeURIComponent(query)}` },
+      naverEngine(query),
+      daumEngine(query),
+      googleEngine(query),
+      chatgptEngine(query),
+      geminiEngine(query),
     ]});
   }
 
@@ -1050,19 +1097,31 @@ function HealthPanel({ credits, onDeduct, onClose }) {
         ⚠️ 일반 의학 정보 제공 목적이며 의사의 진단을 대체하지 않습니다.
       </div>
       <div style={css.tabRow}>
-        <button style={css.modeBtn(mode==="simple")} onClick={()=>{ setMode("simple"); setResult(null); }}>🔗 병원·기관 찾기 (무료)</button>
-        <button style={css.modeBtn(mode==="ai")}     onClick={()=>setMode("ai")}>🤖 AI 건강 정보 ({cost}회/답변)</button>
+        <button style={css.modeBtn(mode==="simple")}   onClick={()=>{ setMode("simple"); setResult(null); }}>🔗 단순 검색 (무료)</button>
+        <button style={css.modeBtn(mode==="facility")} onClick={()=>{ setMode("facility"); setResult(null); }}>🏥 병원·기관 찾기 (무료)</button>
+        <button style={css.modeBtn(mode==="ai")}       onClick={()=>setMode("ai")}>🤖 AI 건강 정보 ({cost}회/답변)</button>
       </div>
-      {mode==="simple" ? (
+      {mode==="simple" && (
         <>
-          <label style={{...css.label,marginTop:8}}>증상 또는 궁금한 내용</label>
+          <label style={{...css.label,marginTop:8}}>궁금한 내용</label>
           <textarea style={css.textarea}
-            placeholder="예) 서울 내과"
+            placeholder="예) 두통 원인"
             value={query} onChange={e=>setQuery(e.target.value)} />
           <button style={css.runBtn(false)} onClick={runSimple}>🔍 검색하기</button>
           <ResultBox result={result} />
         </>
-      ) : (
+      )}
+      {mode==="facility" && (
+        <>
+          <label style={{...css.label,marginTop:8}}>지역 또는 병원·기관명</label>
+          <textarea style={css.textarea}
+            placeholder="예) 서울 내과"
+            value={query} onChange={e=>setQuery(e.target.value)} />
+          <button style={css.runBtn(false)} onClick={runFacility}>🔍 검색하기</button>
+          <ResultBox result={result} />
+        </>
+      )}
+      {mode==="ai" && (
         <>
           <div style={{fontSize:11.5, color:"#8B8DA0", marginTop:8, marginBottom:12, paddingLeft:"1.1em", textIndent:"-1.1em"}}>
             💬 답변마다 {cost}회씩 차감되며, 대화를 이어가면서 계속 질문할 수 있습니다.
@@ -1091,19 +1150,6 @@ function SportsMoviePanel({ credits, onDeduct, onClose }) {
     { id:"movie",  label:"🎬 영화"  },
   ];
 
-  const LINKS = {
-    sports: [
-      { name:"다음 스포츠",       url:()=>"https://sports.daum.net" },
-      { name:"KBO 리그 정보",     url:()=>"https://www.koreabaseball.com" },
-      { name:"FlashScore 실시간 스코어", url:q=>`https://www.flashscore.co.kr/search/?q=${encodeURIComponent(q)}` },
-    ],
-    movie: [
-      { name:"CGV 예매",      url:()=>"https://www.cgv.co.kr" },
-      { name:"메가박스 예매",  url:()=>"https://www.megabox.co.kr" },
-      { name:"왓챠피디아",    url:q=>`https://pedia.watcha.com/ko-KR/search?query=${encodeURIComponent(q)}` },
-    ],
-  };
-
   const SYS = {
     sports: "스포츠 전문 어시스턴트입니다. 경기 일정, 규칙, 선수·팀 정보, 최근 이슈 등을 한국어로 명확하게 정리해 주세요. 이전 대화 맥락을 기억하고 이어서 답변하세요.",
     movie:  "영화 전문 어시스턴트입니다. 줄거리, 평점, 비슷한 영화 추천, 감상 포인트 등을 한국어로 정리해 주세요. 이전 대화 맥락을 기억하고 이어서 답변하세요.",
@@ -1116,7 +1162,22 @@ function SportsMoviePanel({ credits, onDeduct, onClose }) {
 
   function runSimple() {
     if (!query.trim()) return;
-    const links = [...LINKS[sub].map(l=>({ name:l.name, url:l.url(query) })), ...coreLinks(query)];
+    let links = [];
+    if (sub === "sports") {
+      links = [
+        naverEngine(query), daumEngine(query), googleEngine(query),
+        chatgptEngine(query), geminiEngine(query), youtubeEngine(query),
+      ];
+    } else {
+      links = [
+        naverEngine(query), daumEngine(query), googleEngine(query),
+        chatgptEngine(query), geminiEngine(query),
+        { name:"CGV 예매",     url:"https://www.cgv.co.kr" },
+        { name:"메가박스 예매", url:"https://www.megabox.co.kr" },
+        { name:"왓챠피디아",   url:`https://pedia.watcha.com/ko-KR/search?query=${encodeURIComponent(query)}` },
+        youtubeEngine(query),
+      ];
+    }
     setResult({ type:"links", items:links });
   }
 
